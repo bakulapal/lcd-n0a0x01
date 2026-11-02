@@ -33,6 +33,7 @@
  * that is ready to handle data again.
  */
 
+#include <asm/io.h>
 #include <linux/cdev.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
@@ -43,6 +44,7 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/jiffies.h>
+#include <linux/version.h>
 
 #define DRVNAME			"lcd-n0a0x01"
 
@@ -239,7 +241,11 @@ static int lcd_create_device(struct device *parent)
 	if (ret < 0)
 		goto unregister_chrdev;
 
-	lcd_class = class_create(THIS_MODULE, "lcd");
+        #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
+	        lcd_class = class_create("lcd");
+        #else
+	        lcd_class = class_create(THIS_MODULE, "lcd");
+        #endif
 	if (IS_ERR(lcd_class)) {
 		ret = PTR_ERR(lcd_class);
 		goto cdev_del;
@@ -281,11 +287,18 @@ static int lcd_n0a0x01_probe(struct platform_device *pdev)
 	return lcd_create_device(&pdev->dev);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+static void lcd_n0a0x01_remove(struct platform_device *pdev)
+#else
 static int lcd_n0a0x01_remove(struct platform_device *pdev)
+#endif
 {
-	lcd_remove_device();
-	backlight_set(0);
-	return 0;
+        lcd_remove_device();
+        backlight_set(0);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 11, 0)
+        return 0;
+#endif
 }
 
 #ifdef CONFIG_PM_SLEEP
